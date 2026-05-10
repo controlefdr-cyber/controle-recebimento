@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Recebimento — Franco da Rocha</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f4f4f2;color:#1a1a1a;min-height:100vh}
+.header{background:#185FA5;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.header h1{color:#fff;font-size:15px;font-weight:500}
+.header span{font-size:12px;color:rgba(255,255,255,.7)}
+.tab-bar{display:flex;background:#fff;border-bottom:1px solid #e5e5e3}
+.tab{padding:10px 20px;font-size:13px;cursor:pointer;color:#888;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;transition:all .15s}
+.tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500}
+.tab:hover:not(.active){background:#f4f4f2}
+.panel{display:none;padding:16px}
+.panel.active{display:block}
+
+/* MODAL INLINE */
+.modal-wrap{display:none;margin-bottom:16px}
+.modal-wrap.open{display:block}
+.modal{background:#fff;border:1px solid #ddd;border-radius:10px;padding:20px;max-width:400px}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:16px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.field input,.field select{width:100%;padding:8px 10px;font-size:13px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* BOTÕES */
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.btn{padding:7px 14px;font-size:13px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#fff;color:#1a1a1a;display:flex;align-items:center;gap:6px;transition:all .15s}
+.btn:hover{background:#f4f4f2}
+.btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.primary:hover{background:#0C447C}
+.btn.danger{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.btn.success{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+
+/* TABELA */
+.table-wrap{overflow-x:auto;border:1px solid #e5e5e3;border-radius:10px;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;background:#f9f9f7;color:#666;font-weight:500;font-size:12px;border-bottom:1px solid #e5e5e3}
+td{padding:10px 12px;border-bottom:1px solid #f0f0ee;color:#1a1a1a}
+tr:last-child td{border-bottom:none}
+tr.selected{background:#E6F1FB}
+tr:hover:not(.selected){background:#fafaf8;cursor:pointer}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-wait{background:#F1EFE8;color:#5F5E5A}
+.badge-ok{background:#EAF3DE;color:#3B6D11}
+.badge-run{background:#FAEEDA;color:#854F0B}
+
+/* OPERACIONAL */
+.op-header{background:#185FA5;color:#fff;padding:12px 16px;font-size:14px;font-weight:500;text-align:center;border-radius:8px;margin-bottom:14px}
+.op-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.op-card{border:1px solid #e5e5e3;border-radius:10px;padding:14px;background:#fff}
+.op-card.in-progress{border-color:#97C459;background:#EAF3DE}
+.op-card .placa{font-size:17px;font-weight:600;letter-spacing:.5px;margin-bottom:2px}
+.op-card .doca{font-size:12px;color:#666;margin-bottom:2px}
+.op-card .nf{font-size:11px;color:#888;margin-bottom:10px}
+.op-card .timer{font-size:15px;font-weight:500;color:#3B6D11;margin-bottom:10px;font-family:monospace}
+.btn-op{width:100%;padding:9px;font-size:13px;border:none;border-radius:6px;cursor:pointer;font-weight:500;transition:opacity .15s}
+.btn-op:hover{opacity:.85}
+.btn-iniciar{background:#185FA5;color:#fff}
+.btn-finalizar{background:#3B6D11;color:#fff}
+
+.empty{text-align:center;padding:40px;color:#888;font-size:13px}
+.toast{position:fixed;bottom:20px;right:20px;background:#2C2C2A;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚛 Controle de Recebimento — Franco da Rocha</h1>
+  <span id="clock"></span>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('admin')">📋 Administrativo</div>
+  <div class="tab" onclick="switchTab('operacional')">📱 Operacional</div>
+</div>
+
+<!-- ADMIN -->
+<div class="panel active" id="tab-admin">
+
+  <div class="modal-wrap" id="modal-wrap">
+    <div class="modal">
+      <h3 id="modal-title">Novo Recebimento</h3>
+      <div class="field"><label>Placa</label><input id="f-placa" placeholder="BDI5J16" maxlength="8" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="field"><label>Data</label><input id="f-data" type="date"></div>
+      <div class="field"><label>Nota Fiscal</label><input id="f-nf" placeholder="347442"></div>
+      <div class="field"><label>Doca</label><input id="f-doca" placeholder="Ex: Doca 01"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Cancelar</button>
+        <button class="btn primary" onclick="saveEntry()">Salvar</button>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn primary" onclick="openModal()">+ Novo Recebimento</button>
+    <button class="btn" onclick="editSelected()">✏️ Editar</button>
+    <button class="btn danger" onclick="removeSelected()">🗑 Remover</button>
+    <button class="btn success" onclick="copySelected()">📋 Copiar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Placa</th><th>Data</th><th>NF</th><th>Doca</th><th>Início</th><th>Término</th><th>Status</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- OPERACIONAL -->
+<div class="panel" id="tab-operacional">
+  <div class="op-header">Painel do Operador — selecione o veículo e registre o horário</div>
+  <div class="op-cards" id="op-cards"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let data=[], selected=null, editId=null;
+
+function fmt(d){return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
+function statusBadge(s){
+  if(s==='Concluído')return`<span class="badge badge-ok">Concluído</span>`;
+  if(s==='Em andamento')return`<span class="badge badge-run">Em andamento</span>`;
+  return`<span class="badge badge-wait">Aguardando</span>`;
+}
+
+async function load(){
+  const res=await fetch('/api/recebimentos');
+  data=await res.json();
+  render();
+}
+
+function render(){
+  const tb=document.getElementById('tbody');
+  if(!data.length){tb.innerHTML='<tr><td colspan="7" class="empty">Nenhum registro.</td></tr>';renderOp();return;}
+  tb.innerHTML=data.map(r=>`
+    <tr class="${selected===r.id?'selected':''}" onclick="selectRow(${r.id})">
+      <td><strong>${r.placa}</strong></td>
+      <td>${fmt(r.data)}</td>
+      <td>${r.nf}</td>
+      <td>${r.doca}</td>
+      <td>${r.inicio||'—'}</td>
+      <td>${r.termino||'—'}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+  renderOp();
+}
+
+function renderOp(){
+  const c=document.getElementById('op-cards');
+  const p=data.filter(r=>r.status!=='Concluído');
+  if(!p.length){c.innerHTML='<div class="empty">Todos os veículos concluídos.</div>';return;}
+  c.innerHTML=p.map(r=>`
+    <div class="op-card ${r.status==='Em andamento'?'in-progress':''}">
+      <div class="placa">${r.placa}</div>
+      <div class="doca">${r.doca}</div>
+      <div class="nf">NF: ${r.nf}</div>
+      ${r.status==='Em andamento'?`<div class="timer">▶ ${r.inicio}</div>`:'<div style="height:24px"></div>'}
+      ${r.status==='Em andamento'
+        ?`<button class="btn-op btn-finalizar" onclick="finalizar(${r.id})">Finalizar</button>`
+        :`<button class="btn-op btn-iniciar" onclick="iniciar(${r.id})">Iniciar</button>`}
+    </div>`).join('');
+}
+
+function selectRow(id){selected=selected===id?null:id;render()}
+
+function openModal(prefill=null){
+  editId=prefill?prefill.id:null;
+  document.getElementById('modal-title').textContent=prefill?'Editar Recebimento':'Novo Recebimento';
+  document.getElementById('f-placa').value=prefill?prefill.placa:'';
+  document.getElementById('f-data').value=prefill?prefill.data:new Date().toISOString().slice(0,10);
+  document.getElementById('f-nf').value=prefill?prefill.nf:'';
+  document.getElementById('f-doca').value=prefill?prefill.doca:'';
+  document.getElementById('modal-wrap').classList.add('open');
+  document.getElementById('f-placa').focus();
+}
+
+function closeModal(){document.getElementById('modal-wrap').classList.remove('open');editId=null;}
+
+async function saveEntry(){
+  const placa=document.getElementById('f-placa').value.trim().toUpperCase();
+  const dt=document.getElementById('f-data').value;
+  const nf=document.getElementById('f-nf').value.trim();
+  const doca=document.getElementById('f-doca').value.trim();
+  if(!placa||!dt||!nf||!doca){toast('Preencha todos os campos.');return;}
+  if(editId){
+    const r=data.find(x=>x.id===editId);
+    await fetch(`/api/recebimentos/${editId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...r,placa,data:dt,nf,doca})});
+    toast('Atualizado.');
+  } else {
+    await fetch('/api/recebimentos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({placa,data:dt,nf,doca})});
+    toast('Adicionado.');
+  }
+  closeModal();load();
+}
+
+function editSelected(){
+  if(!selected){toast('Selecione um registro.');return;}
+  openModal(data.find(x=>x.id===selected));
+}
+
+async function removeSelected(){
+  if(!selected){toast('Selecione um registro.');return;}
+  if(!confirm('Remover este registro?'))return;
+  await fetch(`/api/recebimentos/${selected}`,{method:'DELETE'});
+  selected=null;toast('Removido.');load();
+}
+
+function copySelected(){
+  if(!selected){toast('Selecione um registro para copiar.');return;}
+  const r=data.find(x=>x.id===selected);
+  if(!r)return;
+  const dtFmt=fmt(r.data).slice(0,5);
+  const lines=[`RECEBIMENTO ${dtFmt}`,r.placa,`NF: ${r.nf}`];
+  if(r.inicio)lines.push(`INÍCIO: ${r.inicio}`);
+  if(r.termino)lines.push(`TÉRMINO: ${r.termino}`);
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('Copiado! Cole no WhatsApp.')).catch(()=>toast('Erro ao copiar.'));
+}
+
+async function iniciar(id){
+  const res=await fetch(`/api/iniciar/${id}`,{method:'POST'});
+  const d=await res.json();
+  toast(`Início: ${d.hora}`);load();
+}
+
+async function finalizar(id){
+  const res=await fetch(`/api/finalizar/${id}`,{method:'POST'});
+  const d=await res.json();
+  toast(`Término: ${d.hora}`);load();
+}
+
+function switchTab(t){
+  ['admin','operacional'].forEach(n=>{
+    document.getElementById('tab-'+n).classList.toggle('active',n===t);
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['admin','operacional'][i]===t));
+}
+
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function clockTick(){
+  document.getElementById('clock').textContent=new Date().toLocaleString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// Auto-atualiza a cada 15 segundos (operacional vê mudanças do admin em tempo real)
+clockTick();setInterval(clockTick,30000);
+setInterval(load,15000);
+load();
+</script>
+</body>
+</html>
